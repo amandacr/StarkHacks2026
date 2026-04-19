@@ -14,7 +14,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 gripper_types = ["MECHANICAL", "MAGNETIC", "SUCTION"] #we are not yet using suction for actual implementation
 
-AVERAGE_DENSITY = 4700 #g/mm
+AVERAGE_DENSITY = .0047 #g/mm3
 AVERAGE_HEIGHT = 22 #mm
 SIZE_THRESHOLD = 1200 #mm
 COMPLEXITY_THRESHOLD = 12
@@ -33,9 +33,9 @@ ITEM_MAP = {
     "car_fob": ("MECHANICAL", 50, (38, 19)), #suction
     "cartridge_filter" : ("MECHANICAL", 600, (55, 55, 95)), #suction
     "copper_bus_bar" : ("MECHANICAL", 600, (100, 25, 2.5)),
-    "dashboard_panel" : ("MECHANICAL", 10000 (600, 200, 70)),
+    "dashboard_panel" : ("MECHANICAL", 10000, (600, 200, 70)),
     "door_handle" : ("MECHANICAL", 300, (127, 25.5)), #suction
-    "door_seal" : ("MECHANICAL", 1200, 100, 0, 0),
+    "door_seal" : ("MECHANICAL", 1200, (100, 0, 0)),
     "flat_filter" : ("MECHANICAL", 350, (75, 50, 25)),
     "floor_panel" : ("MECHANICAL", 2200, (750, 600, 1)),
     "ford_emblem" : ("MECHANICAL", 150, (114.5, 44.5)), #suction
@@ -56,7 +56,6 @@ def get_info(obj_name): #returns a tuple of the form (object name,
 
 def capture(): #captures the image
     ret, frame = cap.read()
-    cap.release()
 
     if not ret:
         raise IOError("Cannot read from camera")
@@ -67,7 +66,7 @@ def capture(): #captures the image
     buffer = io.BytesIO()
     img.save(buffer, format='JPEG')
     img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    sort(img_b64, frame_rgb)
+    return img_b64, frame_rgb
 
 def sort(img, frame_rgb): #sorts first using Roboflow machine learning trained ai model
     obj_name = roboflow_identify(img)
@@ -106,12 +105,12 @@ def roboflow_identify(img): #uses roboflow to return image name
 
 def manual_identify(frame_rgb, img):
     #collect all attributes, pass them into assign_best_fit
-    obj_coords = find_object(img)
+    obj_coords = find_object(frame_rgb)
     if obj_coords is None: return None
-    smooth = is_smooth(img)
+    smooth = is_smooth(frame_rgb)
     magnetic = is_magnetic()
     simple = is_simple(img)
-    small = is_small(obj_coords)
+    small = is_small(*obj_coords)
     gripper_type = assign_best_fit(smooth, magnetic, simple, small)
     return "unidentified object", gripper_type, estimate_weight(frame_rgb), estimate_center_of_gravity(frame_rgb)
 
@@ -155,6 +154,7 @@ def is_smooth(img): #returns true if smooth, false if porous
     MC_SMOOTHNESS_THRESHOLD = 0.12
     MC_POROUS_THRESHOLD = 0.5
 
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     h, w = img.shape
     ps, scores = 16, []
     for y in range(0, h-ps, ps//2):
@@ -238,12 +238,12 @@ def is_simple(frame_rgb):
 
 def is_small(x, y, w, h):
     #uses bounding box instead of actual shape area because overall dimensions matter more than precise area
-    l = abs(x - w) / PIXELS_PER_MM
-    h = abs(y - h) / PIXELS_PER_MM
-    area = l * h
+    w /= PIXELS_PER_MM
+    h /= PIXELS_PER_MM
+    area = w * h
     return area < SIZE_THRESHOLD
 
-def estimate_weight(frame_rgb, magnetic):
+def estimate_weight(frame_rgb):
     #based on size of object and an estimate of what the density is
 
     area = estimate_area(contour_map(frame_rgb))
@@ -282,5 +282,8 @@ def suction_grip(obj_info):
     #execute suction gripping
     return None
 
-
+def main():
+    img_b64, frame_rgb = capture()
+    sort(img_b64, frame_rgb)
+    cap.release()
 
