@@ -14,7 +14,8 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 gripper_types = ["MECHANICAL", "MAGNETIC", "SUCTION"] #we are not yet using suction for actual implementation
 
-AVERAGE_DENSITY = 4700 #g/cm
+AVERAGE_DENSITY = 4700 #g/mm
+AVERAGE_HEIGHT = 22 #mm
 SIZE_THRESHOLD = 1200 #mm
 COMPLEXITY_THRESHOLD = 12
 PIXELS_PER_MM = 6 #must be calibrated based on camera default height
@@ -24,19 +25,19 @@ ITEM_MAP = {
     "brake_pads": ("MAGNETIC", 1000, (82.5, 25.5)),
     "lug_nut" : ("MAGNETIC", 100, (12.5, 12.5)),
     "reinforcement_plate" : ("MAGNETIC", 1450, (152.5, 101.5)),
-    "rotary_seal" : "MAGNETIC",
+    "rotary_seal" : ("MAGNETIC", 1500, (100, 100, 20)),
     "sheet_metal" : ("MAGNETIC", 2200, (152.5, 152.5)),
     "shims" : ("MAGNETIC", 60, (25, 19)),
-    "ball_bearing": "MECHANICAL",
+    "ball_bearing": ("MECHANICAL", 150, (0, 0, 0)),
     "cabin_air_filter": ("MECHANICAL", 400, (127, 101.5)), #suction
     "car_fob": ("MECHANICAL", 50, (38, 19)), #suction
-    "cartridge_filter" : "MECHANICAL", #suction
-    "copper_bus_bar" : "MECHANICAL",
-    "dashboard_panel" : "MECHANICAL",
+    "cartridge_filter" : ("MECHANICAL", 600, (55, 55, 95)), #suction
+    "copper_bus_bar" : ("MECHANICAL", 600, (100, 25, 2.5)),
+    "dashboard_panel" : ("MECHANICAL", 10000 (600, 200, 70)),
     "door_handle" : ("MECHANICAL", 300, (127, 25.5)), #suction
-    "door_seal" : "MECHANICAL",
-    "flat_filter" : "MECHANICAL",
-    "floor_panel" : "MECHANICAL",
+    "door_seal" : ("MECHANICAL", 1200, 100, 0, 0),
+    "flat_filter" : ("MECHANICAL", 350, (75, 50, 25)),
+    "floor_panel" : ("MECHANICAL", 2200, (750, 600, 1)),
     "ford_emblem" : ("MECHANICAL", 150, (114.5, 44.5)), #suction
     "gear_shift" : ("MECHANICAL", 1000, (63.5, 63.5)),
     "oil_dispstick" : ("MECHANICAL", 70, (381, 6)),
@@ -246,7 +247,7 @@ def estimate_weight(frame_rgb, magnetic):
     #based on size of object and an estimate of what the density is
 
     area = estimate_area(contour_map(frame_rgb))
-    return area * AVERAGE_DENSITY
+    return area * AVERAGE_DENSITY * AVERAGE_HEIGHT
 
 def estimate_center_of_gravity(frame_rgb): #returns mm estimate of cog
     #assumes even mass distribution across object
